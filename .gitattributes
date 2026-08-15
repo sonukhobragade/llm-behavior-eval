@@ -1,0 +1,4 @@
+# attacks.csv deliberately contains control characters (NUL) as part of a
+# robustness probe. Treat it as text so diffs stay readable; do not "fix" it.
+data/redteam/attacks.csv text -diff=binary
+* text=auto

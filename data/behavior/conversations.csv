@@ -1,0 +1,6 @@
+label,turns,threshold,complaint_category
+refund_followups,When will my refund arrive?|How long does the refund usually take?|What is the exact date I get my money back?,0.8,repetitive
+plan_followups,What are my upgrade options?|Which plan should I move to?|Which plan gives the best value for my usage?,0.8,repetitive
+outage_loop,Is the service down right now?|Why is it still not working?|How much longer will the outage last?,0.8,repetitive
+billing_dispute_loop,Why was I charged twice?|Can you reverse the duplicate charge?|How do I stop this happening again?,0.8,repetitive
+onboarding_loop,How do I get started?|What is the first step after signing up?|What should I configure before inviting my team?,0.8,repetitive

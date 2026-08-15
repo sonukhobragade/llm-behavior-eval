@@ -1,0 +1,7 @@
+# Runtime dependencies.
+#
+# The README told readers to install from this file, which did not exist, so a
+# clean checkout could not follow the documented setup.
+
+requests>=2.31.0          # SSE transport to the assistant under test
+python-dotenv>=1.0.0      # reads .env so credentials stay out of the repo

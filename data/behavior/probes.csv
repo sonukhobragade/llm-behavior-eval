@@ -1,0 +1,22 @@
+label,question,checks,expect_lang,complaint_category
+delivery_date_en,When exactly will my order arrive after April 2026?,temporal|directness,,stale_past_date
+refund_timing_en,Will my refund be processed soon?,temporal|directness,,stale_past_date
+renewal_month_en,Which exact month does my subscription renew?,temporal|directness,,stale_past_date
+upgrade_window_en,By what date must I upgrade to keep the current price?,temporal|directness,,stale_past_date
+outage_eta_en,When will the reported outage be fixed?,temporal|directness,,stale_past_date
+plan_difference_en,What is the difference between the Standard and Premium plans?,directness,,counter_questions
+cancel_policy_en,Can I cancel after the trial ends and still keep my data?,directness,,counter_questions
+invoice_request_en,I need last month's invoice. Can you send it?,directness,,counter_questions
+seat_limit_en,How many seats does my current plan include?,directness,,counter_questions
+charge_reason_en,Why was I charged twice this month?,specificity|directness,,no_specific_answer
+error_meaning_en,What does error code E-4021 mean and how do I fix it?,specificity,,no_specific_answer
+export_format_en,Which formats can I export my data in?,specificity,,generic_templated
+storage_quota_en,How much storage am I using right now?,specificity,,generic_negative
+integration_steps_en,What are the exact steps to connect this to my calendar?,specificity,,generic_templated
+billing_hi,Mera bill is mahine itna zyada kyun hai?,language,devanagari,language_mismatch
+password_reset_hi,Main apna password kaise reset karun?,language,devanagari,language_mismatch
+account_ta,என் கணக்கை எப்படி மூடுவது?,language,tamil,language_mismatch
+delivery_bn,আমার অর্ডার কবে পৌঁছাবে?,language|temporal,bengali,language_mismatch
+support_te,నా సమస్యను ఎలా నివేదించాలి?,language|temporal,telugu,language_mismatch
+refund_kn,ನನ್ನ ಹಣ ಮರುಪಾವತಿ ಯಾವಾಗ ಬರುತ್ತದೆ?,language|directness,kannada,language_mismatch
+offer_ml,ഈ മാസത്തെ ഓഫർ എന്താണ്?,language,malayalam,language_mismatch

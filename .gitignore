@@ -1,0 +1,20 @@
+.env
+.env.local
+venv/
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.deepeval/
+.DS_Store
+reports/*
+!reports/.gitkeep
+patterns.json
+
+# harness template state
+.template.env
+.template.modules
+.claude/logs/
+
+# Local Claude Code MCP server config; may contain API tokens
+.mcp.json

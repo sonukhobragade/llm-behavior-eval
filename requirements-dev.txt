@@ -1,0 +1,5 @@
+# Tooling required by tools/local_gate.sh and the CI workflow.
+# Kept separate from requirements.txt so running the project does not pull in
+# a linter and a test runner.
+ruff==0.13.2  # pinned: an unpinned linter turns a new ruff release into a red CI
+pytest>=8.0
