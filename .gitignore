@@ -9,7 +9,9 @@ __pycache__/
 .DS_Store
 reports/*
 !reports/.gitkeep
-patterns.json
+# A local vocabulary override at the repo root (see LLMEVAL_PATTERNS).
+# Anchored, so the committed fixture at data/grounding/patterns.json still ships.
+/patterns.json
 
 # harness template state
 .template.env

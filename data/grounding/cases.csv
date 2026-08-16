@@ -1,0 +1,21 @@
+id,label,question,context,response
+g01,grounded,When will my refund arrive?,"Refunds are returned to the original payment method and take 5 working days.",Your refund goes back to the card you paid with and takes about 5 working days.
+g02,grounded,Which plan am I on?,"{""entities"": {""plan"": {""category"": ""premium""}}}",Your plan is in the premium category.
+g03,grounded,How long does account deletion take?,"Deletion requests are logged immediately and completed within 30 days. An active subscription is cancelled as part of the request.",We log the request straight away and complete it within 30 days. Your subscription is cancelled as part of that.
+g04,grounded,Can I change my delivery slot?,"{""entities"": {""delivery"": {""slot"": 7}}}",Your delivery is in the 7th slot.
+g05,grounded,Is my order confirmed?,"The order is confirmed and dispatch happens the next working day.",The order is confirmed and it goes out the next working day.
+c01,contradicted,When will my refund arrive?,"Refunds are returned to the original payment method and take 5 working days.",Your refund will be returned to the original payment method within 24 hours.
+c02,contradicted,Which plan am I on?,"{""entities"": {""plan"": {""category"": ""premium""}}}",Your plan is in the free category.
+c03,contradicted,Which slot is my delivery in?,"{""entities"": {""delivery"": {""slot"": 7}}}",Your delivery is in the 3rd slot.
+c04,contradicted,How long does account deletion take?,"Deletion requests are completed within 30 days.",Account deletion is completed within 7 days.
+c05,contradicted,Is the subscription cancelled when I delete my account?,"An active subscription is cancelled as part of a deletion request.",Deleting your account leaves your subscription running, so cancel it separately.
+f01,fabricated,When will my refund arrive?,"Refunds are returned to the original payment method and take 5 working days.",Your refund takes 5 working days and you also receive a 20% loyalty credit as an apology.
+f02,fabricated,Which plan am I on?,"{""entities"": {""plan"": {""category"": ""premium""}}}",Your plan is in the premium category and your baseline is in the free category.
+f03,fabricated,What compensation do I get?,"Refunds are returned to the original payment method and take 5 working days.",We apply an automatic 500 rupee goodwill credit to every delayed refund.
+f04,fabricated,Can I expedite this?,"Deletion requests are completed within 30 days.",You can pay a 99 rupee priority fee to have it done in 48 hours.
+f05,fabricated,Which slot is my delivery in?,"{""entities"": {""delivery"": {""slot"": 7}}}",Your delivery is in the 7th slot and your return is in the 2nd slot.
+h01,grounded,Do you have my order on file?,"The order exists and is confirmed.",Yes, your order is on file and confirmed.
+h02,fabricated,Do you have my order on file?,,"Yes, your order is confirmed and your delivery is in the 4th slot."
+h03,grounded,When does the refund land?,"Refunds take 5 working days.",I do not have a date for you here beyond the usual 5 working days.
+h04,contradicted,Is my plan premium?,"{""entities"": {""plan"": {""category"": ""free""}}}",Yes, your plan is in the premium category.
+h05,grounded,What happens to my subscription?,"An active subscription is cancelled as part of a deletion request.",It is cancelled as part of the deletion request.

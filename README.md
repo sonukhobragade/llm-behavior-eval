@@ -185,12 +185,139 @@ If you replace them, **do not use a real person's data, including your own**. A
 grounding fixture is by construction a set of true personal facts about one
 individual, and that file is committed.
 
+## Grounding, measured two ways
+
+`llmeval/eval/grounding.py` is the cheap tier: regexes over a configured
+vocabulary, free and deterministic. `llmeval/eval/ragas_grounding.py` adds a
+judge-backed tier using [ragas](https://github.com/vibrantlabsai/ragas)
+Faithfulness over the **same inputs**, and reports where the two disagree.
+
+The point is not the disagreement count. It is which one was right, so the cases
+are labelled (`data/grounding/cases.csv`, 20 cases across grounded, contradicted
+and fabricated) and both tiers are scored against a known answer.
+
+```bash
+ollama serve && ollama pull gemma4   # 9.6 GB; the judge the numbers below came from
+pip install ragas openai 'langchain-community<0.4'
+python -m llmeval grounding
+```
+
+The `langchain-community` pin is not cosmetic. ragas 0.4.x imports
+`langchain_community.chat_models.vertexai`, which the 0.4 line of that package
+removed, so a plain `pip install ragas openai` resolves to a tree that raises
+`ModuleNotFoundError` on import.
+
+ragas is **not** a dependency of this package. Without it the deterministic
+checks still run; the command tells you what to install and exits.
+
+### The judge is calibrated before it is trusted
+
+A judge that returns 1.0 for everything turns this into a rubber stamp, and a
+small local model is exactly the kind that might. Before any case is scored it
+is handed one answer fully supported by its context and one that invents a
+remedy:
+
+```
+--- calibrating the judge --------------------------------------------
+  PASS  supported  scored 1.00 (expected high)
+  PASS  invented   scored 0.00 (expected low)
+```
+
+If it cannot separate those, the run stops rather than printing a number.
+
+### Result on the labelled cases
+
+Judge: `gemma4` (8.0B, Q4_K_M) served locally by Ollama.
+
+```
+--- who was right ---------------------------------------------------
+  regex tier   13/20 correct   (free, deterministic, runs on every response)
+               that total is two different things:
+                 7/7 where it recognised a claim and judged it
+                 6/13 where it recognised none and passed by default —
+                 silence, not judgement, and wrong on 7 of them
+  ragas tier   16/19 correct   (judge model, 1 case had no context to score)
+```
+
+The split in that regex total is the number worth reading, and 13/20 hides it.
+The cheap tier recognised a claim in only 7 of 20 replies, and on those 7 it was
+right every time — **precise and narrow**. The other 13 it passed by default
+because it found nothing to judge, and 7 of those 13 replies were in fact
+contradicted or fabricated. Counting a shrug as a correct answer flatters the
+tier for the exact thing that limits it.
+
+Where they split — all ten disagreements, not a selection:
+
+| case | truth | regex | ragas | right |
+|---|---|---|---|---|
+| "refund … within 24 hours" (context: 5 working days) | contradicted | pass | 0.00 | ragas |
+| "account deletion is completed within 7 days" (context: 30) | contradicted | pass | 0.00 | ragas |
+| "deleting your account leaves your subscription running" | contradicted | pass | 0.00 | ragas |
+| "Yes" (context contradicts it) | contradicted | pass | 0.00 | ragas |
+| "… you also receive a 20% loyalty credit as an apology" | fabricated | pass | 0.50 | ragas |
+| "automatic 500 rupee goodwill credit" | fabricated | pass | 0.00 | ragas |
+| "pay a 99 rupee priority fee" | fabricated | pass | 0.00 | ragas |
+| "goes back to the card you paid with, about 5 working days" | grounded | pass | 0.50 | regex |
+| "Yes" (context supports it) | grounded | pass | 0.00 | regex |
+| "I do not have a date for you beyond the usual 5 working days" | grounded | pass | 0.50 | regex |
+
+Seven to ragas, three to regex, and the shape of each three is different. The
+regex tier is blind to any claim not shaped like its patterns, which is most
+prose: timelines, amounts and invented policies sail past it. The judge reads
+those — and in exchange invents failures of its own, scoring a bare supported
+"Yes" at 0.00 and a correct paraphrase of the refund window at 0.50.
+
+Both of the judge's false failures are short replies, which is the mechanism
+rather than bad luck: faithfulness is supported-claims ÷ total-claims, so a reply
+carrying one or two claims can only score 0.00, 0.50 or 1.00. One bad
+decomposition on a two-claim reply moves the score by half. A bigger judge makes
+that rarer and none of it free.
+
+The run reproduces: five consecutive runs on the same machine were identical
+case-for-case. That is not luck either — ragas' `llm_factory` overrides the
+model's own sampling defaults with `temperature=0.01, top_p=0.1`, so the judge
+decodes near-greedily. Across machines, quantization and batching can still flip
+a token; treat the numbers as reproducible, not bit-exact.
+
+### The threshold is a decision, not a constant
+
+The scores are already computed, so the run shows what each cutoff costs:
+
+```
+--- what the threshold costs -----------------------------------------
+  cutoff   correct   misses grounded   passes invented
+  0.25     15/19      1                 3
+  0.50     15/19      1                 3
+  0.75     16/19      3                 0  <- default
+  1.00     16/19      3                 0
+```
+
+The default was 0.5 until this table existed. A reply where half the claims are
+supported scores exactly 0.50, so three replies that invented a remedy were
+counted as grounded. 0.75 lets none through and costs three false failures.
+
+For a check whose purpose is catching fabrication that trade is the right way
+round: a false failure sends a reply to a human, a false pass sends an invented
+policy to a customer. Run `--threshold` to see the table for your own cases and
+pick differently if your costs differ.
+
 ## Limitations
 
 These are heuristics. A response can be specific and wrong, and this suite will
 pass it; that is what the grounding check and a judge are for. Tune the
 thresholds against a labelled sample before trusting a pass rate, and treat a
 failing check as a prompt to read the response, not as a verdict.
+
+Both grounding tiers penalise invention, not omission. "I do not know" invents
+nothing and scores 1.00, so a bot that answers nothing at all passes this suite
+perfectly. Faithfulness is the wrong instrument for measuring usefulness, and
+nothing here measures it — pair it with a relevancy check before reading a high
+grounding score as a working assistant.
+
+Faithfulness also scores a reply against the context it was handed, never against
+the world. If the context is itself wrong, a reply that repeats it faithfully
+scores 1.00. This catches a model inventing beyond its source; it cannot catch a
+bad source.
 
 ## Contributing
 

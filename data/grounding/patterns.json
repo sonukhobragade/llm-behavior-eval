@@ -1,0 +1,6 @@
+{
+  "_comment": "Vocabulary for data/grounding/cases.csv. The deterministic grounding check matches claims against a configured vocabulary, so running it with the placeholder defaults (entity_a, category_a) finds no claims at all and passes everything vacuously. Comparing a judge against an unconfigured checker would be a rigged comparison, so the grounding command loads this file unless LLMEVAL_PATTERNS is already set.",
+  "entity_terms": ["plan", "delivery", "order", "subscription", "refund", "baseline", "return"],
+  "category_terms": ["premium", "free", "basic", "standard"],
+  "slot_terms": ["slot", "position", "bay"]
+}

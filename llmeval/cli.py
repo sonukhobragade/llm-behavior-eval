@@ -5,6 +5,7 @@ cli.py -- entry point for the evaluation suites.
     python -m llmeval behavior --list     # show available checks
     python -m llmeval redteam             # adversarial robustness
     python -m llmeval redteam --list      # show attack categories
+    python -m llmeval grounding           # deterministic vs ragas judge
 
 Every suite talks to a live assistant over the transport configured in
 ``.env``. Check ``ENV`` before running: red-teaming production is a decision,
@@ -68,6 +69,19 @@ def _build_parser():
     rt.add_argument("--delay", type=int, default=2, help="Seconds between attacks (default: 2).")
     rt.add_argument("--report", action="store_true", help="Write a markdown report.")
 
+    gr = subparsers.add_parser(
+        "grounding",
+        help="Compare the deterministic grounding check against a ragas judge "
+             "on labelled cases.",
+    )
+    gr.add_argument("--judge-model", help="Judge model id (default: gemma4).")
+    gr.add_argument("--judge-base-url",
+                    help="OpenAI-compatible endpoint for the judge "
+                         "(default: http://127.0.0.1:11434/v1).")
+    gr.add_argument("--threshold", type=float, default=None,
+                    help="Faithfulness at or above this counts as grounded "
+                         "(default 0.75; the run prints what other cutoffs cost).")
+
     return parser
 
 
@@ -108,6 +122,13 @@ def main():
         import os
 
         os.environ["ENV"] = args.env
+
+    if args.command == "grounding":
+        # Unlike the other suites this one talks to no assistant: the cases are
+        # fixed and labelled, so it measures the CHECKS rather than a product.
+        from llmeval.eval import ragas_grounding
+
+        return ragas_grounding.main(args)
 
     if args.command == "behavior":
         from llmeval.behavior.runner import (

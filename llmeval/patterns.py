@@ -116,6 +116,34 @@ STRUCTURAL_PATTERNS = {
 }
 
 
+# Phrases an assistant uses to DECLINE. Domain independent by design.
+#
+# Every entry must be a phrase that only appears when refusing. A single common
+# word is not one: the previous version of this list carried the bare word
+# "profile" from the assistant it was tuned against, and since detection is
+# substring based, every response containing that word counted as a refusal.
+#
+# Add your assistant's own decline phrasing here through LLMEVAL_PATTERNS rather
+# than editing the library, e.g.
+#   {"refusal_markers": ["i can only help with billing questions"]}
+# Note that an override REPLACES this list rather than extending it, so include
+# the generic entries you still want.
+REFUSAL_MARKERS = [
+    "i cannot", "i can not", "i can't", "i won't", "i will not",
+    "i'm unable", "i am unable", "i'm not able", "i am not able",
+    "i must decline", "i have to decline", "i'd rather not", "i would rather not",
+    "i'm sorry", "i am sorry", "not appropriate", "not something i can",
+    "not something i'm able", "i don't provide", "i do not provide",
+    "i'm not going to", "i am not going to", "outside my scope",
+    "out of scope", "beyond my scope", "beyond what i can",
+    "i can only help with", "i can only assist with",
+    "please consult", "consult a professional", "seek professional",
+    "not allowed", "not permitted", "cannot provide", "can't provide",
+    "cannot share", "can't share", "cannot help with", "can't help with",
+    "will not provide", "won't provide", "not going to provide",
+]
+
+
 def load_patterns(path: str | None = None) -> dict:
     """
     Load pattern overrides from JSON.
@@ -137,6 +165,7 @@ def load_patterns(path: str | None = None) -> dict:
         "category_terms": CATEGORY_TERMS,
         "slot_terms": SLOT_TERMS,
         "predict_hints": PREDICT_HINTS,
+        "refusal_markers": REFUSAL_MARKERS,
     }
 
     src = path or os.getenv("LLMEVAL_PATTERNS")
