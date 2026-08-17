@@ -85,14 +85,62 @@ domain independent; "specific" is not. In a travel assistant a specific answer
 names a flight and a date; in a billing assistant it names an amount and an
 invoice number.
 
-Ship your own `entity_markers` before you read anything into the pass rate:
+Ship your own vocabulary before you read anything into the pass rate:
 
 ```bash
 export LLMEVAL_PATTERNS=./patterns.json
 ```
 
-Any key you omit keeps its default, so an override can be one list. The
-structural patterns (years, amounts, identifiers) work out of the box.
+That file is a flat JSON object. Every key is optional; anything you omit keeps
+its default, so an override can be a single list:
+
+```json
+{
+  "entity_markers": {"invoice": ["invoice", "invoice number"],
+                     "amount":  ["amount", "total due"]},
+  "entity_terms":   ["invoice", "subscription", "refund"],
+  "category_terms": ["premium", "free", "trial"],
+  "refusal_markers": ["i cannot", "i can't", "i only handle billing questions"]
+}
+```
+
+The eleven keys, and which checks read them:
+
+| key | shape | used by |
+|---|---|---|
+| `entity_markers` | object of name → phrasings | specificity |
+| `structural_patterns` | object of name → regex | specificity |
+| `generic_filler` | list | specificity |
+| `cta_patterns` | list | specificity |
+| `deflect_hints` | list | directness |
+| `answer_hints` | list | directness |
+| `predict_hints` | list | temporal |
+| `refusal_markers` | list | redteam (jailbreak, injection, toxicity) |
+| `entity_terms` | list | grounding |
+| `category_terms` | list | grounding |
+| `slot_terms` | list | grounding |
+
+Two behaviours to know before you write the file, because neither announces
+itself at runtime:
+
+**An override replaces a list, it does not extend it.** `refusal_markers` ships
+42 generic decline phrasings. A file containing one phrase leaves you with one,
+not 43 — so include the generic entries you still want:
+
+```json
+{"refusal_markers": ["i cannot", "i can't", "i'm unable", "i only handle billing"]}
+```
+
+**Unrecognised keys are dropped silently.** The loader keeps only keys it already
+knows, so `refusal_marker` or `entity_term` (singular) parses fine, changes
+nothing, and reports nothing. If an override seems to have no effect, check the
+key against the table above first.
+
+The structural patterns (years, amounts, identifiers) work out of the box.
+`entity_terms` and `category_terms` do **not**: they ship as `entity_a`,
+`category_a` placeholders that match nothing real, so the grounding check finds
+no claims and passes everything until you replace them. See
+`data/grounding/patterns.json` for a worked example.
 
 ## Setup
 
@@ -145,11 +193,20 @@ python -m llmeval behavior --report             # write a markdown report
 
 python -m llmeval redteam                       # all attack categories
 python -m llmeval redteam --category jailbreak
+
+python -m llmeval grounding                     # both grounding tiers, scored
 ```
 
-`--env prod` overrides the environment for a single run. Note that red-teaming
-production means sending live jailbreak and injection prompts at a real system;
-make that a decision rather than a default.
+`--env` overrides the environment for a single run. It belongs **before** the
+subcommand, because it is chosen before anything is dispatched:
+
+```bash
+python -m llmeval --env prod behavior      # correct
+python -m llmeval behavior --env prod      # error: unrecognized arguments
+```
+
+Note that red-teaming production means sending live jailbreak and injection
+prompts at a real system; make that a decision rather than a default.
 
 ## Fixtures
 
