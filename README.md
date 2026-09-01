@@ -11,6 +11,43 @@ Also includes an adversarial suite (jailbreak, prompt injection, hallucination
 baiting, toxicity, robustness) and a grounding check that scores a response
 against a record whose correct answers you already know.
 
+## What it measures
+
+Two tiers over 20 labelled grounding cases, judged by a local `gemma4` (8.0B):
+
+```
+regex tier   13/20 correct   free, deterministic, runs on every response
+ragas tier   16/19 correct   judge model, 1 case had no context to score
+```
+
+That regex 13/20 is two different things: **7/7** where it recognised a claim
+and judged it, and **6/13** where it recognised none and passed by default —
+wrong on 7 of those. Precise and narrow, which is the whole argument for
+putting a judge tier above it and not below. Full breakdown in
+[Result on the labelled cases](#result-on-the-labelled-cases).
+
+## See it in one command
+
+```bash
+pip install -r requirements.txt
+python -m llmeval behavior --list
+```
+
+```
+Behavior — Checks & probe counts:
+─────────────────────────────────────────────
+  temporal.............. 7 probes
+  language.............. 7 probes
+  directness............ 11 probes
+  specificity........... 5 probes
+  repetitive............ 5 conversations
+─────────────────────────────────────────────
+```
+
+No model, no key and no `.env` needed to get that far. Running the probes
+themselves needs an endpoint — [five-minute local setup](#run-it-against-a-local-model-in-five-minutes)
+points the suite at Ollama.
+
 ## The problem it addresses
 
 A chatbot test suite that asserts HTTP 200 and a non-empty body will pass
