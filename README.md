@@ -190,10 +190,15 @@ cp .env.example .env      # point it at your assistant
 
 ### Run it against a local model in five minutes
 
-Two transports ship. `sse` speaks a bespoke assistant API, which is only useful
-if you happen to own that assistant. `openai` speaks
-`/v1/chat/completions`, which Ollama, vLLM, LM Studio, llama.cpp, OpenRouter and
-OpenAI all serve, so you can point the suite at anything:
+Three transports ship:
+
+| Transport | Speaks | Use it for |
+|---|---|---|
+| `sse` | a bespoke assistant API | only useful if you own that assistant |
+| `openai` | `/v1/chat/completions` | Ollama, vLLM, LM Studio, llama.cpp, OpenRouter **and OpenAI itself** |
+| `anthropic` | `/v1/messages` | Claude — a separate transport because the Messages API is not OpenAI-compatible |
+
+Start local, because it costs nothing:
 
 ```bash
 ollama serve
@@ -211,6 +216,29 @@ OPENAI_MODEL=llama3.1
 ```bash
 python -m llmeval redteam --category jailbreak
 ```
+
+Against a hosted provider instead, no code changes either way:
+
+```bash
+# .env — OpenAI
+LLMEVAL_TRANSPORT=openai
+OPENAI_BASE_URL=https://api.openai.com/v1
+OPENAI_API_KEY=sk-...
+OPENAI_MODEL=gpt-4.1
+```
+
+```bash
+# .env — Anthropic
+LLMEVAL_TRANSPORT=anthropic
+ANTHROPIC_API_KEY=sk-ant-...
+ANTHROPIC_MODEL=claude-sonnet-5
+```
+
+Anthropic needs its own transport rather than a base-URL swap: the endpoint is
+`/v1/messages`, auth is `x-api-key` instead of a bearer token, `max_tokens` is
+required, the system prompt is a top-level field rather than a message, and the
+reply arrives in `content[]` blocks. Non-text blocks — thinking, tool use — are
+dropped rather than scored, since they are not what the user saw.
 
 That is the whole setup: no account, no key, no cost. A local model is also the
 right place for the red-team suite, since firing jailbreak and toxicity prompts
