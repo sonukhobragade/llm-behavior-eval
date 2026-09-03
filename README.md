@@ -11,9 +11,30 @@ Also includes an adversarial suite (jailbreak, prompt injection, hallucination
 baiting, toxicity, robustness) and a grounding check that scores a response
 against a record whose correct answers you already know.
 
-## What it measures
+## The problem it addresses
 
-Two tiers over 20 labelled grounding cases, judged by a local `gemma4` (8.0B):
+A chatbot test suite that asserts HTTP 200 and a non-empty body will pass
+forever while the product gets worse. The failures users actually complain about
+are behavioural:
+
+- **Vagueness.** Fluent, on-topic, and contains no checkable fact.
+- **Deflection.** Answers a question with an offer to answer it.
+- **Repetition.** Three follow-up turns return the same paragraph reworded.
+- **Language drift.** User writes in Tamil, assistant replies in English.
+- **Stale time reasoning.** Confidently references a date that has passed.
+
+Each of those is a passing test and an unhappy user. This suite makes them fail.
+
+## Grounding: is the answer even supported?
+
+Those behavioural checks ask whether an answer is *usable*. Grounding asks something
+narrower and harder: does the answer only claim things the supplied context
+actually supports, or did the model invent the rest?
+
+Two tiers answer that. A regex pass over a configured vocabulary, which is free
+and runs on every response, and a judge model for the cases the cheap tier
+cannot read. Scored against 20 cases where the right answer is known, with a
+local `gemma4` (8.0B) as judge:
 
 ```
 regex tier   13/20 correct   free, deterministic, runs on every response
@@ -47,20 +68,6 @@ Behavior — Checks & probe counts:
 No model, no key and no `.env` needed to get that far. Running the probes
 themselves needs an endpoint — [five-minute local setup](#run-it-against-a-local-model-in-five-minutes)
 points the suite at Ollama.
-
-## The problem it addresses
-
-A chatbot test suite that asserts HTTP 200 and a non-empty body will pass
-forever while the product gets worse. The failures users actually complain about
-are behavioural:
-
-- **Vagueness.** Fluent, on-topic, and contains no checkable fact.
-- **Deflection.** Answers a question with an offer to answer it.
-- **Repetition.** Three follow-up turns return the same paragraph reworded.
-- **Language drift.** User writes in Tamil, assistant replies in English.
-- **Stale time reasoning.** Confidently references a date that has passed.
-
-Each of those is a passing test and an unhappy user. This suite makes them fail.
 
 ## Checks
 
