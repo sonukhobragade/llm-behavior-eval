@@ -26,6 +26,7 @@ from llmeval.config import (
     TRANSPORT,
     USER_ID,
 )
+from llmeval.anthropic_client import call_anthropic
 from llmeval.openai_client import call_openai
 
 # Known fields that carry suggestion/follow-up data from the API
@@ -42,6 +43,9 @@ def call_assistant(message, timeout=45, auth_token=None, session_id=None,
     """
     if TRANSPORT == "openai":
         return call_openai(message, timeout=timeout)
+
+    if TRANSPORT == "anthropic":
+        return call_anthropic(message, timeout=timeout)
 
     if not SSE_URL:
         # Without this the POST goes to an empty URL and every probe comes

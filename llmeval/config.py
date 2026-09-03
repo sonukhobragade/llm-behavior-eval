@@ -60,11 +60,34 @@ SSE_URL = _get("SSE_URL")
 # Setting OPENAI_BASE_URL without setting the transport picks "openai", since
 # there is no other reason to set that variable.
 OPENAI_BASE_URL = _get("OPENAI_BASE_URL")
-TRANSPORT = (_get("LLMEVAL_TRANSPORT") or ("openai" if OPENAI_BASE_URL else "sse")).lower()
+ANTHROPIC_API_KEY = _get("ANTHROPIC_API_KEY")
+
+# Precedence when the transport is not named explicitly: an Anthropic key is a
+# deliberate act, an OPENAI_BASE_URL is too, and "sse" is the fallback because
+# it is the only one that needs no credential to be *configured*, only to run.
+TRANSPORT = (
+    _get("LLMEVAL_TRANSPORT")
+    or ("anthropic" if ANTHROPIC_API_KEY else None)
+    or ("openai" if OPENAI_BASE_URL else "sse")
+).lower()
 
 OPENAI_API_KEY = _get("OPENAI_API_KEY")
 OPENAI_MODEL = _get("OPENAI_MODEL", "llama3.1")
 OPENAI_SYSTEM_PROMPT = _get("OPENAI_SYSTEM_PROMPT")
+
+# ── Anthropic ──────────────────────────────────────────────────────────────
+# The Messages API is not OpenAI-compatible, so it gets its own transport.
+ANTHROPIC_BASE_URL = _get("ANTHROPIC_BASE_URL", "https://api.anthropic.com")
+ANTHROPIC_MODEL = _get("ANTHROPIC_MODEL", "claude-sonnet-5")
+ANTHROPIC_SYSTEM_PROMPT = _get("ANTHROPIC_SYSTEM_PROMPT")
+ANTHROPIC_VERSION = _get("ANTHROPIC_VERSION", "2023-06-01")
+
+# max_tokens is required by the API. Generous rather than tight: a truncated
+# reply is reported as an error, and a low ceiling would manufacture those.
+try:
+    ANTHROPIC_MAX_TOKENS = int(_get("ANTHROPIC_MAX_TOKENS", "1024") or 1024)
+except ValueError:
+    ANTHROPIC_MAX_TOKENS = 1024
 
 # Deterministic by default: a check that passes on one sampling roll and fails
 # on the next is measuring the sampler.
