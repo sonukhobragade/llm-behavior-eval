@@ -93,6 +93,31 @@ class TestCalibrationGate:
         metric = self._FakeMetric([0.0, 0.0])
         assert asyncio.run(rg.calibrate(metric, verbose=False)) is False
 
+    class _IncapableMetric:
+        """A judge that cannot answer at all, rather than answering badly.
+
+        Faithfulness asks for structured JSON. A model too small to hold a
+        schema returns prose, or the schema itself, and the library raises.
+        """
+
+        async def ascore(self, **kwargs):
+            raise RuntimeError("validation error for StatementGeneratorOutput")
+
+    def test_a_judge_that_cannot_be_scored_is_reported_not_raised(self):
+        """Observed with llama3.2 on 2026-09-04: the run died with a hundred
+        lines of pydantic and tenacity frames on the documented local-model
+        path. Being incapable and being wrong are the same verdict to the
+        operator, so both belong with the calibration result."""
+        with pytest.raises(rg.JudgeUnusable):
+            asyncio.run(rg.calibrate(self._IncapableMetric(), verbose=False))
+
+    def test_the_unusable_judge_error_names_the_case_that_failed(self):
+        try:
+            asyncio.run(rg.calibrate(self._IncapableMetric(), verbose=False))
+        except rg.JudgeUnusable as exc:
+            assert "supported" in str(exc)
+            assert "RuntimeError" in str(exc)
+
     def test_an_uncalibrated_run_reports_nothing(self):
         assert rg.report({"calibrated": False}) == 2
 

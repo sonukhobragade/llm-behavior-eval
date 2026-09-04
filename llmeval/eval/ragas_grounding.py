@@ -125,12 +125,35 @@ def build_judge(model: str, base_url: str, api_key: str = ""):
     return llm_factory(model, provider="openai", client=client)
 
 
+class JudgeUnusable(RuntimeError):
+    """The judge could not be scored at all, as opposed to scoring badly.
+
+    Faithfulness asks the judge for structured JSON. A model too small to
+    honour a schema returns prose, or the schema itself, and ragas raises deep
+    in its retry stack. That is a fact about the judge, not a bug in the run,
+    so it belongs with the calibration verdict rather than as a traceback.
+    """
+
+
 async def calibrate(metric, verbose: bool = True) -> bool:
-    """True when the judge can tell a supported answer from an invented one."""
+    """True when the judge can tell a supported answer from an invented one.
+
+    Raises :class:`JudgeUnusable` when the judge cannot produce a score at all.
+    Calibration used to test only whether a judge was *wrong*; a judge that is
+    *incapable* crashed instead, with a hundred lines of pydantic and tenacity
+    frames, on the documented "point it at Ollama" path. Both are the same
+    answer to the operator: this judge cannot be trusted, pick another one.
+    """
     ok = True
     for label, band, question, response, contexts in CALIBRATION:
-        result = await metric.ascore(user_input=question, response=response,
-                                     retrieved_contexts=contexts)
+        try:
+            result = await metric.ascore(user_input=question, response=response,
+                                         retrieved_contexts=contexts)
+        except Exception as exc:  # noqa: BLE001 - any failure here is the same verdict
+            raise JudgeUnusable(
+                f"scoring the {label!r} calibration case failed: "
+                f"{type(exc).__name__}"
+            ) from exc
         score = result.value
         # Generous bands on purpose. The question is whether the judge separates
         # the two at all, not whether it agrees with a particular number.
@@ -180,7 +203,16 @@ async def run(model: str, base_url: str, api_key: str = "",
 
     print(f"Judge: {model} at {base_url}\n")
     print("--- calibrating the judge " + "-" * 44)
-    if not await calibrate(metric):
+    try:
+        separated = await calibrate(metric)
+    except JudgeUnusable as exc:
+        print(f"\n  FAIL  {model} could not return a usable score.\n"
+              f"        {exc}\n\n"
+              "  Faithfulness asks the judge for structured JSON. A model that\n"
+              "  cannot hold to a schema fails here rather than scoring badly.\n"
+              "  Use a larger judge model.")
+        return {"calibrated": False}
+    if not separated:
         print("\n  The judge cannot separate a supported answer from an invented "
               "one.\n  Scores below would be noise, so nothing is reported. Use a "
               "larger judge model.")
