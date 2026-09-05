@@ -93,6 +93,65 @@ class TestCalibrationGate:
         metric = self._FakeMetric([0.0, 0.0])
         assert asyncio.run(rg.calibrate(metric, verbose=False)) is False
 
+    class _IncapableMetric:
+        """A judge that cannot answer at all, rather than answering badly.
+
+        Faithfulness asks for structured JSON. A model too small to hold a
+        schema returns prose, or the schema itself, and the library raises.
+        """
+
+        async def ascore(self, **kwargs):
+            raise RuntimeError("validation error for StatementGeneratorOutput")
+
+    def test_a_judge_that_cannot_be_scored_is_reported_not_raised(self):
+        """Observed with llama3.2 on 2026-09-04: the run died with a hundred
+        lines of pydantic and tenacity frames on the documented local-model
+        path. Being incapable and being wrong are the same verdict to the
+        operator, so both belong with the calibration result."""
+        with pytest.raises(rg.JudgeUnusable):
+            asyncio.run(rg.calibrate(self._IncapableMetric(), verbose=False))
+
+    def test_the_unusable_judge_error_names_the_case_that_failed(self):
+        try:
+            asyncio.run(rg.calibrate(self._IncapableMetric(), verbose=False))
+        except rg.JudgeUnusable as exc:
+            assert "supported" in str(exc)
+            assert "RuntimeError" in str(exc)
+
+    def test_the_unusable_judge_error_keeps_the_underlying_message(self):
+        """Observed with claude-haiku-4-5 on 2026-09-05: the endpoint rejected
+        the request with a 400, and reporting only the exception class printed
+        "BadRequestError" beneath the advice to use a larger judge model. The
+        request was malformed and every model refused it identically, so the
+        message is the only part that pointed anywhere useful."""
+        try:
+            asyncio.run(rg.calibrate(self._IncapableMetric(), verbose=False))
+        except rg.JudgeUnusable as exc:
+            assert "validation error for StatementGeneratorOutput" in str(exc)
+
+    def test_an_unknown_provider_is_named_not_guessed(self):
+        """It used to fall through to the OpenAI path pointed at localhost, so
+        a typo reported itself as "Ollama is not running"."""
+        with pytest.raises(rg.UnknownJudgeProvider) as caught:
+            rg.build_judge("m", "http://x", "", provider="claude")
+        assert "claude" in str(caught.value)
+        assert "anthropic" in str(caught.value)
+
+    def test_each_provider_carries_its_own_default_model(self):
+        """The default was Ollama's whatever the provider was, so selecting
+        Anthropic alone sent "gemma4" to the Anthropic API and got a 404
+        naming a model the operator never chose."""
+        assert rg.PROVIDERS["openai"]["model"] == "gemma4"
+        assert rg.PROVIDERS["anthropic"]["model"].startswith("claude-")
+        assert rg.PROVIDERS["anthropic"]["base_url"] is None
+
+    def test_the_sampling_note_says_scores_can_move(self):
+        """An Anthropic judge cannot be pinned: the SDK has no temperature
+        parameter, so ragas's near-greedy decoding is dropped. That belongs in
+        the run output, not only in a comment."""
+        assert "default sampling" in rg._SAMPLING_NOTE
+        assert "move between runs" in rg._SAMPLING_NOTE
+
     def test_an_uncalibrated_run_reports_nothing(self):
         assert rg.report({"calibrated": False}) == 2
 
