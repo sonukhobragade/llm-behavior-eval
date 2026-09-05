@@ -129,6 +129,29 @@ class TestCalibrationGate:
         except rg.JudgeUnusable as exc:
             assert "validation error for StatementGeneratorOutput" in str(exc)
 
+    def test_an_unknown_provider_is_named_not_guessed(self):
+        """It used to fall through to the OpenAI path pointed at localhost, so
+        a typo reported itself as "Ollama is not running"."""
+        with pytest.raises(rg.UnknownJudgeProvider) as caught:
+            rg.build_judge("m", "http://x", "", provider="claude")
+        assert "claude" in str(caught.value)
+        assert "anthropic" in str(caught.value)
+
+    def test_each_provider_carries_its_own_default_model(self):
+        """The default was Ollama's whatever the provider was, so selecting
+        Anthropic alone sent "gemma4" to the Anthropic API and got a 404
+        naming a model the operator never chose."""
+        assert rg.PROVIDERS["openai"]["model"] == "gemma4"
+        assert rg.PROVIDERS["anthropic"]["model"].startswith("claude-")
+        assert rg.PROVIDERS["anthropic"]["base_url"] is None
+
+    def test_the_sampling_note_says_scores_can_move(self):
+        """An Anthropic judge cannot be pinned: the SDK has no temperature
+        parameter, so ragas's near-greedy decoding is dropped. That belongs in
+        the run output, not only in a comment."""
+        assert "default sampling" in rg._SAMPLING_NOTE
+        assert "move between runs" in rg._SAMPLING_NOTE
+
     def test_an_uncalibrated_run_reports_nothing(self):
         assert rg.report({"calibrated": False}) == 2
 

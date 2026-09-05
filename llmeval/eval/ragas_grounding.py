@@ -35,6 +35,7 @@ is noise and the run stops rather than printing a number.
 from __future__ import annotations
 
 import csv
+import functools
 import json
 import os
 
@@ -117,10 +118,37 @@ def context_as_texts(fed_context) -> list[str]:
     return lines or [json.dumps(fed_context)]
 
 
-#: Sampling parameters ragas sends on every call. Anthropic removed them from
-#: the Messages API on Claude 4.6 and later, and the SDK dropped the keyword
-#: entirely, so passing them through raises TypeError before a request is made.
+#: Sampling parameters ragas sends on every call. Anthropic removed these from
+#: the Messages API on Claude 4.6 and later and the SDK dropped the keywords
+#: outright — they are not in the signature — so they cannot be forwarded, and
+#: cannot be honoured by sending them some other way either.
 _UNSUPPORTED_SAMPLING = ("temperature", "top_p", "top_k")
+
+#: ragas asks for near-greedy decoding (temperature 0.01, top_p 0.1) to keep a
+#: judge repeatable. Dropping those leaves the model at its own defaults, so an
+#: Anthropic judge is not pinned and scores may move between runs. The run says
+#: so rather than leaving it in a comment nobody reads.
+_SAMPLING_NOTE = (
+    "  note: this judge runs at the model's default sampling. The Anthropic\n"
+    "  SDK has no temperature parameter, so the near-greedy decoding ragas\n"
+    "  asks for cannot be applied. Scores may move between runs.\n")
+
+#: Per-provider defaults. The judge model default used to be Ollama's whatever
+#: the provider was, so selecting Anthropic and nothing else sent the string
+#: "gemma4" to the Anthropic API and got a 404 naming a model the user never
+#: chose.
+PROVIDERS = {
+    "openai": {
+        "model": "gemma4",
+        "base_url": "http://127.0.0.1:11434/v1",
+        "package": "openai",
+    },
+    "anthropic": {
+        "model": "claude-haiku-4-5",
+        "base_url": None,
+        "package": "anthropic",
+    },
+}
 
 
 def _anthropic_client(api_key: str):
@@ -132,8 +160,16 @@ def _anthropic_client(api_key: str):
     client with isinstance and refuses anything that is not a real
     AsyncAnthropic. So the strip has to happen in a subclass.
     """
-    from anthropic import AsyncAnthropic
-    from anthropic.resources.messages import AsyncMessages
+    try:
+        from anthropic import AsyncAnthropic
+        from anthropic.resources.messages import AsyncMessages
+    except ImportError as exc:  # pragma: no cover - exercised by hand
+        raise MissingJudgeDependency(
+            "The Anthropic judge needs the anthropic package, which is not a "
+            "dependency of this package:\n"
+            "    pip install ragas anthropic\n"
+            "The deterministic checks run without it."
+        ) from exc
 
     class _Messages(AsyncMessages):
         async def create(self, **kwargs):
@@ -142,8 +178,8 @@ def _anthropic_client(api_key: str):
             return await super().create(**kwargs)
 
     class _Anthropic(AsyncAnthropic):
-        @property
-        def messages(self):
+        @functools.cached_property
+        def messages(self):  # type: ignore[override]
             return _Messages(self)
 
     return _Anthropic(api_key=api_key)
@@ -159,6 +195,12 @@ def build_judge(model: str, base_url: str, api_key: str = "",
     ``json_schema``. Every Claude model fails identically on it, so the failure
     says nothing about the judge and a larger model does not fix it.
     """
+    if provider not in PROVIDERS:
+        raise UnknownJudgeProvider(
+            f"unknown judge provider {provider!r}. "
+            f"Choose one of: {', '.join(sorted(PROVIDERS))}."
+        )
+
     from ragas.llms import llm_factory
 
     if provider == "anthropic":
@@ -171,6 +213,24 @@ def build_judge(model: str, base_url: str, api_key: str = "",
 
     client = AsyncOpenAI(base_url=base_url, api_key=api_key or "not-needed")
     return llm_factory(model, provider="openai", client=client)
+
+
+class MissingJudgeDependency(RuntimeError):
+    """The chosen provider's client library is not installed.
+
+    ragas itself is guarded at the top of the run, but the provider packages
+    were not, so selecting the Anthropic judge without installing anthropic
+    ended the run in a bare ModuleNotFoundError rather than the install line
+    every other missing dependency here prints.
+    """
+
+
+class UnknownJudgeProvider(RuntimeError):
+    """RAGAS_JUDGE_PROVIDER named something that is not a provider.
+
+    An unrecognised value used to fall through to the OpenAI path pointed at
+    localhost, so a typo reported itself as "Ollama is not running".
+    """
 
 
 class JudgeUnusable(RuntimeError):
@@ -255,7 +315,11 @@ async def run(model: str, base_url: str, api_key: str = "",
     metric = Faithfulness(llm=judge)
 
     where = "the Anthropic API" if provider == "anthropic" else base_url
-    print(f"Judge: {model} at {where}\n")
+    print(f"Judge: {model} at {where}")
+    if provider == "anthropic":
+        print(_SAMPLING_NOTE)
+    else:
+        print()
     print("--- calibrating the judge " + "-" * 44)
     try:
         separated = await calibrate(metric)
@@ -381,15 +445,28 @@ def report(summary: dict) -> int:
 def main(args) -> int:
     import asyncio
 
-    model = args.judge_model or os.getenv("RAGAS_JUDGE_MODEL", "gemma4")
-    base_url = args.judge_base_url or os.getenv(
-        "RAGAS_JUDGE_BASE_URL", "http://127.0.0.1:11434/v1")
-    api_key = os.getenv("RAGAS_JUDGE_API_KEY", "")
     # Anthropic serves /v1/chat/completions but not the JSON mode ragas asks
     # for, so it needs its own client rather than a base_url swap.
-    provider = os.getenv("RAGAS_JUDGE_PROVIDER", "openai").lower()
+    provider = (getattr(args, "judge_provider", None)
+                or os.getenv("RAGAS_JUDGE_PROVIDER", "openai")).lower()
+    if provider not in PROVIDERS:
+        print(f"Unknown judge provider {provider!r}. "
+              f"Choose one of: {', '.join(sorted(PROVIDERS))}.")
+        return 2
+    defaults = PROVIDERS[provider]
+
+    # Defaults follow the provider. They used to be Ollama's regardless, so
+    # selecting Anthropic alone sent "gemma4" to the Anthropic API.
+    model = args.judge_model or os.getenv("RAGAS_JUDGE_MODEL") or defaults["model"]
+    base_url = (args.judge_base_url or os.getenv("RAGAS_JUDGE_BASE_URL")
+                or defaults["base_url"])
+    api_key = os.getenv("RAGAS_JUDGE_API_KEY", "")
     if provider == "anthropic" and not api_key:
         api_key = os.getenv("ANTHROPIC_API_KEY", "")
+    if provider == "anthropic" and not api_key:
+        print("The Anthropic judge needs a key. Set RAGAS_JUDGE_API_KEY or "
+              "ANTHROPIC_API_KEY.")
+        return 2
 
     try:
         import ragas  # noqa: F401
@@ -400,6 +477,10 @@ def main(args) -> int:
         return 2
 
     threshold = args.threshold if args.threshold is not None else DEFAULT_THRESHOLD
-    summary = asyncio.run(run(model, base_url, api_key, threshold=threshold,
-                              provider=provider))
+    try:
+        summary = asyncio.run(run(model, base_url, api_key, threshold=threshold,
+                                  provider=provider))
+    except (MissingJudgeDependency, UnknownJudgeProvider) as exc:
+        print(exc)
+        return 2
     return report(summary)

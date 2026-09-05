@@ -74,7 +74,14 @@ def _build_parser():
         help="Compare the deterministic grounding check against a ragas judge "
              "on labelled cases.",
     )
-    gr.add_argument("--judge-model", help="Judge model id (default: gemma4).")
+    gr.add_argument("--judge-provider", choices=("openai", "anthropic"),
+                    help="Judge backend (default: openai, which is what Ollama "
+                         "serves). Anthropic needs its own client: it does not "
+                         "accept the JSON mode ragas asks for over its "
+                         "OpenAI-compatible endpoint.")
+    gr.add_argument("--judge-model",
+                    help="Judge model id (default follows --judge-provider: "
+                         "gemma4 for openai, claude-haiku-4-5 for anthropic).")
     gr.add_argument("--judge-base-url",
                     help="OpenAI-compatible endpoint for the judge "
                          "(default: http://127.0.0.1:11434/v1).")
