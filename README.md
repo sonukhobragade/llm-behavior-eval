@@ -429,7 +429,7 @@ The scores are already computed, so the run shows what each cutoff costs:
 
 ```
 --- what the threshold costs -----------------------------------------
-  cutoff   correct   misses grounded   passes invented
+  cutoff   correct   misses grounded   passes ungrounded
   0.25     15/19      1                 3
   0.50     15/19      1                 3
   0.75     16/19      3                 0  <- default

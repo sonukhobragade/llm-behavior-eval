@@ -213,6 +213,47 @@ class TestCalibrationGate:
         assert rg.report({"calibrated": False}) == 2
 
 
+class TestThresholdTableLabels:
+    """The cost table's column headings have to describe what is counted.
+
+    The third column tests `not truth_ok`, so it counts contradicted replies as
+    well as fabricated ones. It was headed "passes invented", which reads as
+    fabrications only. I then repeated that reading in an article, which is how
+    a wrong label costs something.
+    """
+
+    def _table(self, rows):
+        import io
+        import contextlib
+
+        summary = {"calibrated": True, "threshold": rg.DEFAULT_THRESHOLD,
+                   "rows": rows, "scored": rows, "disagreed": []}
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            rg.report(summary)
+        return buf.getvalue()
+
+    def _row(self, case_id, label, score):
+        return {"id": case_id, "label": label, "truth_ok": label == "grounded",
+                "response": "x", "regex_ok": True, "regex_claims": 0,
+                "ragas_score": score, "ragas_ok": score >= rg.DEFAULT_THRESHOLD}
+
+    def test_the_column_is_not_headed_invented(self):
+        out = self._table([self._row("g01", "grounded", 1.0)])
+        assert "passes ungrounded" in out
+        assert "passes invented" not in out
+
+    def test_a_contradicted_pass_is_counted_in_that_column(self):
+        """The name change is only worth anything if this is what it counts."""
+        rows = [self._row("c01", "contradicted", 1.0)]
+        out = self._table(rows)
+        row = [ln for ln in out.splitlines() if ln.strip().startswith("0.75")][0]
+        cutoff, correct, misses, passes = row.split()[:4]
+        assert correct == "0/1"      # the contradicted reply was scored wrong
+        assert misses == "0"         # nothing grounded was failed
+        assert passes == "1"         # and it landed in the ungrounded column
+
+
 class TestThreshold:
     """These drive `rg.verdict`, the function `run` actually uses. An earlier
     version of this class asserted `(score >= DEFAULT_THRESHOLD) is expected`,

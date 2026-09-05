@@ -421,7 +421,11 @@ def report(summary: dict) -> int:
     # already computed — so show what it costs rather than defending one number.
     # At 0.5 a reply where half the claims are invented counts as grounded.
     print("\n--- what the threshold costs " + "-" * 41)
-    print(f"  {'cutoff':<9}{'correct':<10}{'misses grounded':<18}passes invented")
+    # "ungrounded", not "invented": false_pass below tests `not truth_ok`, so it
+    # counts contradicted replies as well as fabricated ones. The column was
+    # headed "passes invented" and read as fabrications only, including by me
+    # when writing about it.
+    print(f"  {'cutoff':<9}{'correct':<10}{'misses grounded':<18}passes ungrounded")
     for cut in (0.25, 0.5, 0.75, 1.0):
         right = sum(1 for r in scored if (r["ragas_score"] >= cut) == r["truth_ok"])
         false_fail = sum(1 for r in scored
