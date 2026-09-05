@@ -118,6 +118,17 @@ class TestCalibrationGate:
             assert "supported" in str(exc)
             assert "RuntimeError" in str(exc)
 
+    def test_the_unusable_judge_error_keeps_the_underlying_message(self):
+        """Observed with claude-haiku-4-5 on 2026-09-05: the endpoint rejected
+        the request with a 400, and reporting only the exception class printed
+        "BadRequestError" beneath the advice to use a larger judge model. The
+        request was malformed and every model refused it identically, so the
+        message is the only part that pointed anywhere useful."""
+        try:
+            asyncio.run(rg.calibrate(self._IncapableMetric(), verbose=False))
+        except rg.JudgeUnusable as exc:
+            assert "validation error for StatementGeneratorOutput" in str(exc)
+
     def test_an_uncalibrated_run_reports_nothing(self):
         assert rg.report({"calibrated": False}) == 2
 

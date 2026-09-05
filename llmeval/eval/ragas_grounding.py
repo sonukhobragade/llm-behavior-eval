@@ -14,7 +14,8 @@ nothing about which one was right.
 
 Requires ragas, which is not a dependency of this package:
 
-    pip install ragas openai
+    pip install ragas openai            # OpenAI-compatible judge (Ollama)
+    pip install ragas anthropic         # Anthropic judge
 
 The judge defaults to whatever serves /v1/chat/completions locally, so this
 reproduces from a clean clone with no account:
@@ -116,10 +117,57 @@ def context_as_texts(fed_context) -> list[str]:
     return lines or [json.dumps(fed_context)]
 
 
-def build_judge(model: str, base_url: str, api_key: str = ""):
-    """A ragas LLM pointed at any OpenAI-compatible endpoint."""
-    from openai import AsyncOpenAI
+#: Sampling parameters ragas sends on every call. Anthropic removed them from
+#: the Messages API on Claude 4.6 and later, and the SDK dropped the keyword
+#: entirely, so passing them through raises TypeError before a request is made.
+_UNSUPPORTED_SAMPLING = ("temperature", "top_p", "top_k")
+
+
+def _anthropic_client(api_key: str):
+    """An AsyncAnthropic that drops sampling parameters ragas insists on sending.
+
+    Two things force this shape. ragas hard-codes a temperature, and current
+    Claude models reject it. Wrapping the client in a proxy does not work
+    either: instructor, which ragas uses to get structured output, checks the
+    client with isinstance and refuses anything that is not a real
+    AsyncAnthropic. So the strip has to happen in a subclass.
+    """
+    from anthropic import AsyncAnthropic
+    from anthropic.resources.messages import AsyncMessages
+
+    class _Messages(AsyncMessages):
+        async def create(self, **kwargs):
+            for key in _UNSUPPORTED_SAMPLING:
+                kwargs.pop(key, None)
+            return await super().create(**kwargs)
+
+    class _Anthropic(AsyncAnthropic):
+        @property
+        def messages(self):
+            return _Messages(self)
+
+    return _Anthropic(api_key=api_key)
+
+
+def build_judge(model: str, base_url: str, api_key: str = "",
+                provider: str = "openai"):
+    """A ragas LLM pointed at an OpenAI-compatible endpoint or at Anthropic.
+
+    Anthropic is not reachable over the OpenAI-compatible path despite serving
+    /v1/chat/completions. ragas asks for ``response_format={"type":
+    "json_object"}``, OpenAI's older JSON mode, and that endpoint accepts only
+    ``json_schema``. Every Claude model fails identically on it, so the failure
+    says nothing about the judge and a larger model does not fix it.
+    """
     from ragas.llms import llm_factory
+
+    if provider == "anthropic":
+        # max_tokens is required by the Messages API and has no default.
+        return llm_factory(model, provider="anthropic",
+                           client=_anthropic_client(api_key),
+                           max_tokens=1024)
+
+    from openai import AsyncOpenAI
 
     client = AsyncOpenAI(base_url=base_url, api_key=api_key or "not-needed")
     return llm_factory(model, provider="openai", client=client)
@@ -150,9 +198,13 @@ async def calibrate(metric, verbose: bool = True) -> bool:
             result = await metric.ascore(user_input=question, response=response,
                                          retrieved_contexts=contexts)
         except Exception as exc:  # noqa: BLE001 - any failure here is the same verdict
+            # Keep the underlying message. Reporting only the exception class
+            # printed "BadRequestError" under the advice "use a larger judge
+            # model", which sent this in exactly the wrong direction: the
+            # request was malformed, and every model rejected it the same way.
             raise JudgeUnusable(
                 f"scoring the {label!r} calibration case failed: "
-                f"{type(exc).__name__}"
+                f"{type(exc).__name__}: {exc}"
             ) from exc
         score = result.value
         # Generous bands on purpose. The question is whether the judge separates
@@ -181,7 +233,8 @@ def verdict(score: float, threshold: float = DEFAULT_THRESHOLD) -> bool:
 
 
 async def run(model: str, base_url: str, api_key: str = "",
-              threshold: float = DEFAULT_THRESHOLD, cases_path=None) -> dict:
+              threshold: float = DEFAULT_THRESHOLD, cases_path=None,
+              provider: str = "openai") -> dict:
     """Score every labelled case with both tiers. Returns a summary dict."""
     if not os.getenv("LLMEVAL_PATTERNS"):
         os.environ["LLMEVAL_PATTERNS"] = str(PATTERNS_PATH)
@@ -198,19 +251,21 @@ async def run(model: str, base_url: str, api_key: str = "",
     check_grounding = _grounding.check_grounding
     from ragas.metrics.collections import Faithfulness
 
-    judge = build_judge(model, base_url, api_key)
+    judge = build_judge(model, base_url, api_key, provider=provider)
     metric = Faithfulness(llm=judge)
 
-    print(f"Judge: {model} at {base_url}\n")
+    where = "the Anthropic API" if provider == "anthropic" else base_url
+    print(f"Judge: {model} at {where}\n")
     print("--- calibrating the judge " + "-" * 44)
     try:
         separated = await calibrate(metric)
     except JudgeUnusable as exc:
         print(f"\n  FAIL  {model} could not return a usable score.\n"
               f"        {exc}\n\n"
-              "  Faithfulness asks the judge for structured JSON. A model that\n"
-              "  cannot hold to a schema fails here rather than scoring badly.\n"
-              "  Use a larger judge model.")
+              "  Faithfulness asks the judge for structured JSON. Either the\n"
+              "  model cannot hold to a schema, or the endpoint rejected the\n"
+              "  request. Read the error above before changing model: a 4xx\n"
+              "  is the request, and a larger judge will not fix it.")
         return {"calibrated": False}
     if not separated:
         print("\n  The judge cannot separate a supported answer from an invented "
@@ -330,6 +385,11 @@ def main(args) -> int:
     base_url = args.judge_base_url or os.getenv(
         "RAGAS_JUDGE_BASE_URL", "http://127.0.0.1:11434/v1")
     api_key = os.getenv("RAGAS_JUDGE_API_KEY", "")
+    # Anthropic serves /v1/chat/completions but not the JSON mode ragas asks
+    # for, so it needs its own client rather than a base_url swap.
+    provider = os.getenv("RAGAS_JUDGE_PROVIDER", "openai").lower()
+    if provider == "anthropic" and not api_key:
+        api_key = os.getenv("ANTHROPIC_API_KEY", "")
 
     try:
         import ragas  # noqa: F401
@@ -340,5 +400,6 @@ def main(args) -> int:
         return 2
 
     threshold = args.threshold if args.threshold is not None else DEFAULT_THRESHOLD
-    summary = asyncio.run(run(model, base_url, api_key, threshold=threshold))
+    summary = asyncio.run(run(model, base_url, api_key, threshold=threshold,
+                              provider=provider))
     return report(summary)
