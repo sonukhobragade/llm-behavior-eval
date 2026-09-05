@@ -1,0 +1,17 @@
+# Optional. The judge-backed tier of the grounding check (llmeval grounding).
+# The deterministic checks run without any of this.
+#
+#     pip install -r requirements-judge.txt
+#
+# The langchain-community pin is not cosmetic. ragas 0.4.x imports
+# langchain_community.chat_models.vertexai, which the 0.4 line of that package
+# removed, so an unpinned install resolves to a tree that raises
+# ModuleNotFoundError the moment ragas is imported.
+ragas>=0.4,<0.5
+langchain-community<0.4
+
+# One client per judge backend. openai covers any OpenAI-compatible endpoint,
+# which is what Ollama serves; anthropic is needed only for
+# RAGAS_JUDGE_PROVIDER=anthropic.
+openai>=1.0
+anthropic>=1.0

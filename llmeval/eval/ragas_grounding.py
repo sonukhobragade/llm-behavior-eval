@@ -14,8 +14,11 @@ nothing about which one was right.
 
 Requires ragas, which is not a dependency of this package:
 
-    pip install ragas openai            # OpenAI-compatible judge (Ollama)
-    pip install ragas anthropic         # Anthropic judge
+    pip install ragas openai 'langchain-community<0.4'      # Ollama judge
+    pip install ragas anthropic 'langchain-community<0.4'   # Anthropic judge
+
+The pin is not cosmetic: ragas 0.4.x imports a module the 0.4 line of
+langchain-community removed, so an unpinned install imports and raises.
 
 The judge defaults to whatever serves /v1/chat/completions locally, so this
 reproduces from a clean clone with no account:
@@ -442,6 +445,53 @@ def report(summary: dict) -> int:
     return 0
 
 
+#: What to install for each provider, pins included. `pip install ragas openai`
+#: on its own resolves to a tree whose import fails, so the printed line has to
+#: carry the pin or it sends people in a circle.
+INSTALL_LINES = {
+    "openai": "pip install ragas openai 'langchain-community<0.4'",
+    "anthropic": "pip install ragas anthropic 'langchain-community<0.4'",
+}
+
+
+def judge_import_problem(provider: str) -> str:
+    """The message to print when the judge tier cannot import, else "".
+
+    Two different failures used to print the same sentence. ragas absent is one
+    thing; ragas present but raising on import is another, and it is the one
+    that happens when you follow `pip install ragas openai` literally — ragas
+    0.4.x imports `langchain_community.chat_models.vertexai`, which the 0.4 line
+    of that package removed. Reporting both as "not a dependency of this
+    package" told people to install what they had just installed.
+    """
+    install = INSTALL_LINES.get(provider, INSTALL_LINES["openai"])
+    try:
+        import ragas  # noqa: F401
+    except ModuleNotFoundError as exc:
+        if (exc.name or "").split(".")[0] == "ragas":
+            return ("This tier needs ragas, which is not a dependency of this "
+                    "package:\n"
+                    f"    {install}\n"
+                    "The deterministic checks run without it.")
+        return (f"ragas is installed but cannot be imported: {exc}\n"
+                "Its dependency tree needs a pin:\n"
+                f"    {install}\n"
+                "The deterministic checks run without it.")
+    except ImportError as exc:
+        return (f"ragas is installed but cannot be imported: {exc}\n"
+                f"    {install}\n"
+                "The deterministic checks run without it.")
+
+    if provider == "anthropic":
+        try:
+            import anthropic  # noqa: F401
+        except ImportError:
+            return ("The Anthropic judge needs the anthropic package:\n"
+                    f"    {install}\n"
+                    "The deterministic checks run without it.")
+    return ""
+
+
 def main(args) -> int:
     import asyncio
 
@@ -460,20 +510,20 @@ def main(args) -> int:
     model = args.judge_model or os.getenv("RAGAS_JUDGE_MODEL") or defaults["model"]
     base_url = (args.judge_base_url or os.getenv("RAGAS_JUDGE_BASE_URL")
                 or defaults["base_url"])
+    # Dependencies before credentials. Asking for a key first sent anyone
+    # without ragas installed off to find one, only to hit the missing
+    # dependency afterwards.
+    problem = judge_import_problem(provider)
+    if problem:
+        print(problem)
+        return 2
+
     api_key = os.getenv("RAGAS_JUDGE_API_KEY", "")
     if provider == "anthropic" and not api_key:
         api_key = os.getenv("ANTHROPIC_API_KEY", "")
     if provider == "anthropic" and not api_key:
         print("The Anthropic judge needs a key. Set RAGAS_JUDGE_API_KEY or "
               "ANTHROPIC_API_KEY.")
-        return 2
-
-    try:
-        import ragas  # noqa: F401
-    except ImportError:
-        print("This tier needs ragas, which is not a dependency of this package:\n"
-              "    pip install ragas openai\n"
-              "The deterministic checks run without it.")
         return 2
 
     threshold = args.threshold if args.threshold is not None else DEFAULT_THRESHOLD

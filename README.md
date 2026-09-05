@@ -327,9 +327,24 @@ and fabricated) and both tiers are scored against a known answer.
 
 ```bash
 ollama serve && ollama pull gemma4   # 9.6 GB; the judge the numbers below came from
-pip install ragas openai 'langchain-community<0.4'
+pip install -r requirements-judge.txt
 python -m llmeval grounding
 ```
+
+Or use a hosted judge instead of a local one, which needs no download:
+
+```bash
+pip install -r requirements-judge.txt
+export ANTHROPIC_API_KEY=sk-ant-...
+python -m llmeval grounding --judge-provider anthropic
+```
+
+A hosted judge cannot be pinned to greedy decoding — the Anthropic SDK has no
+temperature parameter — so it runs at the model default and its score moves
+between runs. Three consecutive runs of the command above scored 16/19, 17/19
+and 19/19 on the same 20 cases. The run prints that caveat itself. Treat a
+single number from a judge tier as a draw, not a result; the regex tier below
+is deterministic and returned 13/20 every time.
 
 The `langchain-community` pin is not cosmetic. ragas 0.4.x imports
 `langchain_community.chat_models.vertexai`, which the 0.4 line of that package

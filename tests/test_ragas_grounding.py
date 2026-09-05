@@ -152,6 +152,40 @@ class TestCalibrationGate:
         assert "default sampling" in rg._SAMPLING_NOTE
         assert "move between runs" in rg._SAMPLING_NOTE
 
+    def test_every_install_line_carries_the_pin(self):
+        """`pip install ragas openai` resolves to a tree that raises on import,
+        so a printed line without the pin sends the reader in a circle: install
+        what the message said, run again, get the same message."""
+        for provider, line in rg.INSTALL_LINES.items():
+            assert "langchain-community<0.4" in line, provider
+            assert "ragas" in line, provider
+
+    def test_a_broken_ragas_is_not_reported_as_a_missing_one(self):
+        """Observed on a clean clone: ragas 0.4.3 was installed and importing
+        it raised ModuleNotFoundError for langchain_community. The guard
+        caught ImportError and said ragas "is not a dependency of this
+        package", which is both untrue and unfixable by following it."""
+        import builtins
+
+        real_import = builtins.__import__
+
+        def fake_import(name, *a, **kw):
+            if name == "ragas":
+                raise ModuleNotFoundError(
+                    "No module named 'langchain_community.chat_models.vertexai'",
+                    name="langchain_community.chat_models.vertexai")
+            return real_import(name, *a, **kw)
+
+        builtins.__import__ = fake_import
+        try:
+            message = rg.judge_import_problem("openai")
+        finally:
+            builtins.__import__ = real_import
+
+        assert "cannot be imported" in message
+        assert "not a dependency" not in message
+        assert "langchain-community<0.4" in message
+
     def test_an_uncalibrated_run_reports_nothing(self):
         assert rg.report({"calibrated": False}) == 2
 
