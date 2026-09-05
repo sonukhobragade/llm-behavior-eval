@@ -39,6 +39,7 @@ from __future__ import annotations
 
 import csv
 import functools
+import importlib
 import json
 import os
 
@@ -468,7 +469,9 @@ def judge_import_problem(provider: str) -> str:
     try:
         import ragas  # noqa: F401
     except ModuleNotFoundError as exc:
-        if (exc.name or "").split(".")[0] == "ragas":
+        # Exact match, not a prefix. A missing ragas.something means ragas was
+        # found and raised while importing, which is the opposite verdict.
+        if exc.name == "ragas":
             return ("This tier needs ragas, which is not a dependency of this "
                     "package:\n"
                     f"    {install}\n"
@@ -482,13 +485,26 @@ def judge_import_problem(provider: str) -> str:
                 f"    {install}\n"
                 "The deterministic checks run without it.")
 
-    if provider == "anthropic":
-        try:
-            import anthropic  # noqa: F401
-        except ImportError:
-            return ("The Anthropic judge needs the anthropic package:\n"
-                    f"    {install}\n"
-                    "The deterministic checks run without it.")
+    # Every provider's client is checked, not just Anthropic's.
+    #
+    # Only the anthropic leg can fire today, and it is the one that matters:
+    # ragas imports fine without anthropic, so without this check selecting
+    # that judge died in build_judge with a traceback. Verified by hand in a
+    # venv with ragas and openai but no anthropic.
+    #
+    # The openai leg is defence, not a fix for anything reachable: ragas
+    # imports openai eagerly, so an environment missing it never gets this
+    # far — the ragas import above fails first and reports the same thing.
+    # It is here so a future ragas that imports its clients lazily does not
+    # reintroduce the traceback. No test covers it, because nothing can
+    # exercise it without also breaking the ragas import.
+    package = PROVIDERS.get(provider, PROVIDERS["openai"])["package"]
+    try:
+        importlib.import_module(package)
+    except ImportError:
+        return (f"The {provider} judge needs the {package} package:\n"
+                f"    {install}\n"
+                "The deterministic checks run without it.")
     return ""
 
 

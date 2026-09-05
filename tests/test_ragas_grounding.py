@@ -186,6 +186,29 @@ class TestCalibrationGate:
         assert "not a dependency" not in message
         assert "langchain-community<0.4" in message
 
+    def test_a_missing_ragas_submodule_is_not_called_an_absent_package(self):
+        """Found in review. Comparing only the first path component made
+        `ragas.foo` missing read as ragas absent, so a damaged install was
+        told to install what it already had."""
+        import builtins
+
+        real_import = builtins.__import__
+
+        def fake_import(name, *a, **kw):
+            if name == "ragas":
+                raise ModuleNotFoundError("No module named 'ragas.foo'",
+                                          name="ragas.foo")
+            return real_import(name, *a, **kw)
+
+        builtins.__import__ = fake_import
+        try:
+            message = rg.judge_import_problem("openai")
+        finally:
+            builtins.__import__ = real_import
+
+        assert "cannot be imported" in message
+        assert "not a dependency" not in message
+
     def test_an_uncalibrated_run_reports_nothing(self):
         assert rg.report({"calibrated": False}) == 2
 
