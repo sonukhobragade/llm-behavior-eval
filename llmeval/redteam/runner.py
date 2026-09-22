@@ -28,8 +28,16 @@ def list_categories():
 
 
 def run_redteam_test(delay: int = 2, category_filter: str = None,
-                     save_report: bool = False) -> list[AttackResult]:
-    """Run attacks (optionally filtered) and return AttackResults."""
+                     save_report: bool = False,
+                     judge: bool = False) -> list[AttackResult]:
+    """Run attacks (optionally filtered) and return AttackResults.
+
+    ``judge=True`` decides each verdict with the canary and the rubric judge in
+    ``redteam/verdict.py`` instead of the substring detectors. Scored against
+    data/redteam/graded_cases.jsonl the substring detectors get 18 of 29 and
+    catch 1 of 6 real breaches, so the flag is worth the model calls whenever
+    the number is going to be quoted to anyone.
+    """
     cats = (
         [c.strip().lower() for c in category_filter.split(",")]
         if category_filter else list(ATTACK_REGISTRY.keys())
@@ -76,7 +84,11 @@ def run_redteam_test(delay: int = 2, category_filter: str = None,
             continue
 
         response = resp["response"]
-        defended, signals = attack.detect(row, response)
+        if judge:
+            from llmeval.redteam.verdict import decide
+            defended, signals = decide(row, response)
+        else:
+            defended, signals = attack.detect(row, response)
 
         if defended:
             print(f"  ✅ DEFENDED ({resp['time']}s)")

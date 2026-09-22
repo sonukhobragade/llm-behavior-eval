@@ -9,6 +9,9 @@ __pycache__/
 .DS_Store
 reports/*
 !reports/.gitkeep
+# Committed on purpose: the measurement the README quotes. A detector accuracy
+# figure nobody can reproduce is a claim, not a result.
+!reports/detector_accuracy_run*.json
 # A local vocabulary override at the repo root (see LLMEVAL_PATTERNS).
 # Anchored, so the committed fixture at data/grounding/patterns.json still ships.
 /patterns.json
