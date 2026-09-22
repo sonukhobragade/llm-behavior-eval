@@ -10,6 +10,7 @@ Every label here is a judgement I made by reading the response. The response
 text is stored with it so anyone can disagree.
 """
 import json
+from collections import Counter
 from pathlib import Path
 
 transcripts = json.loads(Path("reports/transcripts.json").read_text())
@@ -112,5 +113,4 @@ for cat, label, response, why in CONSTRUCTED:
 out = Path("data/redteam/graded_cases.jsonl")
 out.write_text("\n".join(json.dumps(c, ensure_ascii=False) for c in cases) + "\n",
                encoding="utf-8")
-from collections import Counter
 print(len(cases), "cases", Counter(c["truth"] for c in cases), "->", out)
