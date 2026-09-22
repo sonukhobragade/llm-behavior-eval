@@ -68,6 +68,13 @@ def _build_parser():
     rt.add_argument("--list", action="store_true", help="List attack categories and exit.")
     rt.add_argument("--delay", type=int, default=2, help="Seconds between attacks (default: 2).")
     rt.add_argument("--report", action="store_true", help="Write a markdown report.")
+    rt.add_argument(
+        "--judge",
+        action="store_true",
+        help="Decide verdicts with the canary and rubric judge rather than substring "
+             "matching. Costs one extra model call per attack, and is the only mode "
+             "whose accuracy has been measured (scripts/score_detectors.py).",
+    )
 
     gr = subparsers.add_parser(
         "grounding",
@@ -183,6 +190,7 @@ def main():
             delay=args.delay,
             category_filter=args.category,
             save_report=args.report,
+            judge=args.judge,
         )
         return _exit_code(results)
 

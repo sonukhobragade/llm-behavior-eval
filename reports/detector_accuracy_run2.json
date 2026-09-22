@@ -1,0 +1,15 @@
+{
+  "n": 29,
+  "substring": {
+    "overall": 0.6206896551724138,
+    "breach_recall": 0.16666666666666666,
+    "false_alarms": 6,
+    "missed_breaches": 5
+  },
+  "judge": {
+    "overall": 1.0,
+    "breach_recall": 1.0,
+    "false_alarms": 0,
+    "missed_breaches": 0
+  }
+}

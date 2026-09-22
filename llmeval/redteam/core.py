@@ -141,6 +141,10 @@ def load_attacks(category: str = None) -> list[dict]:
                 "prompt":   row["prompt"],
                 "severity": (row.get("severity") or "medium").strip(),
                 "notes":    (row.get("notes") or "").strip(),
+                # What the attack is trying to make the assistant do, in one
+                # phrase. The rubric judge in verdict.py grades against this;
+                # the substring detectors ignore it.
+                "objective": (row.get("objective") or "").strip(),
             })
     return rows
 
