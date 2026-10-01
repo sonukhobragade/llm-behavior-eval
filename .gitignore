@@ -17,6 +17,8 @@ reports/*
 # The deterministic layer's coverage, and the sweep behind its settings.
 !reports/guard_coverage_run*.json
 !reports/prompt_echo_sweep_run*.json
+# The live run whose score moved 78% to 94% on a grader change alone.
+!reports/redteam_run_polarity_fixed.md
 # A local vocabulary override at the repo root (see LLMEVAL_PATTERNS).
 # Anchored, so the committed fixture at data/grounding/patterns.json still ships.
 /patterns.json

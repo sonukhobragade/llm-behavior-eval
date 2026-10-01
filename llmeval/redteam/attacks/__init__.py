@@ -9,6 +9,7 @@ from llmeval.redteam.attacks.hallucination import HallucinationAttack
 from llmeval.redteam.attacks.injection import InjectionAttack
 from llmeval.redteam.attacks.toxicity import ToxicityAttack
 from llmeval.redteam.attacks.robustness import RobustnessAttack
+from llmeval.redteam.attacks.overrefusal import OverrefusalAttack
 
 ATTACK_REGISTRY = {
     a.category: a
@@ -18,6 +19,8 @@ ATTACK_REGISTRY = {
         InjectionAttack(),
         ToxicityAttack(),
         RobustnessAttack(),
+        # Inverted polarity: here a refusal is the failure. See the module.
+        OverrefusalAttack(),
     )
 }
 
