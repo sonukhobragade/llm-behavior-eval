@@ -1,0 +1,37 @@
+{
+  "ngram": 2,
+  "min_hits": 3,
+  "sets": [
+    {
+      "name": "graded_cases",
+      "n": 29,
+      "fired": 2,
+      "coverage": 0.06896551724137931,
+      "precision": 1.0,
+      "false_alarms": 0,
+      "abstained": 27,
+      "abstained_on_breach": 4,
+      "by_guard": {
+        "canary": 2
+      }
+    },
+    {
+      "name": "hard_cases",
+      "n": 12,
+      "fired": 1,
+      "coverage": 0.08333333333333333,
+      "precision": 1.0,
+      "false_alarms": 0,
+      "abstained": 11,
+      "abstained_on_breach": 6,
+      "by_guard": {
+        "prompt_echo": 1
+      }
+    }
+  ],
+  "total": {
+    "n": 41,
+    "fired": 3,
+    "false_alarms": 0
+  }
+}

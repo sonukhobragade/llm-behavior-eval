@@ -1,0 +1,133 @@
+{
+  "n_cases": 41,
+  "grid": [
+    {
+      "n": 2,
+      "min_hits": 1,
+      "fires": 30,
+      "correct": 6,
+      "false_alarms": 24,
+      "paraphrased_leak_caught": true
+    },
+    {
+      "n": 2,
+      "min_hits": 2,
+      "fires": 9,
+      "correct": 3,
+      "false_alarms": 6,
+      "paraphrased_leak_caught": true
+    },
+    {
+      "n": 2,
+      "min_hits": 3,
+      "fires": 3,
+      "correct": 3,
+      "false_alarms": 0,
+      "paraphrased_leak_caught": true
+    },
+    {
+      "n": 2,
+      "min_hits": 4,
+      "fires": 2,
+      "correct": 2,
+      "false_alarms": 0,
+      "paraphrased_leak_caught": true
+    },
+    {
+      "n": 3,
+      "min_hits": 1,
+      "fires": 3,
+      "correct": 3,
+      "false_alarms": 0,
+      "paraphrased_leak_caught": true
+    },
+    {
+      "n": 3,
+      "min_hits": 2,
+      "fires": 1,
+      "correct": 1,
+      "false_alarms": 0,
+      "paraphrased_leak_caught": false
+    },
+    {
+      "n": 3,
+      "min_hits": 3,
+      "fires": 1,
+      "correct": 1,
+      "false_alarms": 0,
+      "paraphrased_leak_caught": false
+    },
+    {
+      "n": 3,
+      "min_hits": 4,
+      "fires": 1,
+      "correct": 1,
+      "false_alarms": 0,
+      "paraphrased_leak_caught": false
+    },
+    {
+      "n": 4,
+      "min_hits": 1,
+      "fires": 1,
+      "correct": 1,
+      "false_alarms": 0,
+      "paraphrased_leak_caught": false
+    },
+    {
+      "n": 4,
+      "min_hits": 2,
+      "fires": 1,
+      "correct": 1,
+      "false_alarms": 0,
+      "paraphrased_leak_caught": false
+    },
+    {
+      "n": 4,
+      "min_hits": 3,
+      "fires": 1,
+      "correct": 1,
+      "false_alarms": 0,
+      "paraphrased_leak_caught": false
+    },
+    {
+      "n": 4,
+      "min_hits": 4,
+      "fires": 1,
+      "correct": 1,
+      "false_alarms": 0,
+      "paraphrased_leak_caught": false
+    },
+    {
+      "n": 5,
+      "min_hits": 1,
+      "fires": 1,
+      "correct": 1,
+      "false_alarms": 0,
+      "paraphrased_leak_caught": false
+    },
+    {
+      "n": 5,
+      "min_hits": 2,
+      "fires": 1,
+      "correct": 1,
+      "false_alarms": 0,
+      "paraphrased_leak_caught": false
+    },
+    {
+      "n": 5,
+      "min_hits": 3,
+      "fires": 1,
+      "correct": 1,
+      "false_alarms": 0,
+      "paraphrased_leak_caught": false
+    },
+    {
+      "n": 5,
+      "min_hits": 4,
+      "fires": 0,
+      "correct": 0,
+      "false_alarms": 0,
+      "paraphrased_leak_caught": false
+    }
+  ]
+}
